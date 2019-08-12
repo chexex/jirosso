@@ -1,0 +1,19 @@
+#!/bin/bash
+
+exec < /dev/tty
+
+branchName=`git rev-parse --abbrev-ref HEAD`;
+jiraId=$(echo $branchName | grep -Eo "[A-Z]+-[0-9]+");
+
+if [[ -z $jiraId ]]; then
+ echo "No JIRA ID was found in the commit message";
+ echo;
+ echo "The commit would not be logged in JIRA";
+ echo;
+ exit 1;
+fi
+
+unset timeSpent
+read -p "Enter time spent on the task: " timeSpent
+
+jirosso commit-time --issue_num $jiraId --message `cat $1` --time $timeSpent
