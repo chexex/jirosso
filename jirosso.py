@@ -84,7 +84,9 @@ class JiraHelper(object):
         self.jira.add_comment(self.config['issue'], body=message, **kwargs)
 
     def __repr__(self):
-        return '<JiraHelper {0["jira_server"]!r} {0["issue"]!r}>'.format(self.config)
+        return '<JiraHelper {config[jira_server]!r} {config[issue]!r}>'.format(
+            config=self.config
+        )
 
 
 pass_jira_helper = click.make_pass_decorator(JiraHelper)
