@@ -1,3 +1,4 @@
+import re
 from functools import wraps
 
 import click
@@ -30,8 +31,8 @@ def handle_jira_exception(f):
         try:
             res = f(*args, **kwargs)
         except JIRAError as e:
-            click.ClickException.show(e)
-            return click.ClickException.exit_code
+            click.ClickException.show(click.ClickException(e.text))
+            exit(click.ClickException.exit_code)
         else:
             return res
     return wrapper
@@ -167,6 +168,12 @@ def commit_time(jira_helper, issue_num, time, message, dry_run):
     Dont forget to evaluate
     `chmod +x .git/hooks/prepare-commit-msg`
     """
+    # If the time is something other than JIRA desired time format,
+    # we will skip time commitment at all.
+    if not re.search(r'\d+[mhdw]', time):
+        click.echo('Skipped time commit')
+        return 0
+
     jira_helper.set_config('issue', issue_num)
 
     if dry_run:

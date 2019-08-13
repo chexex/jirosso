@@ -15,10 +15,10 @@ fi
 
 isAmend=`ps -ocommand= -p $PPID | grep -e '--amend'`;
 
-if [[ -z ${isAmend} ]]; then
+if [[ ! -z ${isAmend} ]]; then
   message="`cat $1` amended"
 else
   message=`cat $1`
 fi
 
-jirosso commit-time --issue_num ${jiraId} --message `cat $1`
+jirosso commit-time --issue-num ${jiraId} --message "`cat $1`"
