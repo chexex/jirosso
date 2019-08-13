@@ -1,6 +1,93 @@
+from functools import wraps
+
 import click
 from jira import JIRA
 from jira.exceptions import JIRAError
+
+
+class lazyproperty:
+    def __init__(self, func):
+            self.func = func
+
+    def __get__(self, instance, cls):
+        if instance is None:
+            return self
+        else:
+            value = self.func(instance)
+            setattr(instance, self.func.__name__, value)
+            return value
+
+
+def handle_jira_exception(f):
+    """
+    Handles `JIRAError` exceptions by
+    wrapping function with try except.
+
+    If exception occurs error will be showed in console.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            res = f(*args, **kwargs)
+        except JIRAError as e:
+            click.ClickException.show(e)
+            return click.ClickException.exit_code
+        else:
+            return res
+    return wrapper
+
+
+class JiraHelper(object):
+
+    def __init__(self):
+        self.config = {
+            'timeout': 3.001,
+            'jira_server': None,
+            'username': None,
+            'password': None,
+            'issue': None,
+        }
+
+    def set_config(self, key, value):
+        self.config[key] = value
+
+    @lazyproperty
+    def jira(self):
+        config = self.config
+        return JIRA(
+            server=config['jira_server'],
+            basic_auth=(
+                (
+                    config['username'],
+                    config['password'],
+                )
+            ),
+            timeout=config['timeout']
+        )
+
+    @lazyproperty
+    def issue(self):
+        return self.jira.issue(self.config['issue'])
+
+    @handle_jira_exception
+    def add_worklog(self, time, message, **kwargs):
+        """
+        Proxies `add_worklog` with adding jira exception handler.
+        """
+        self.jira.add_worklog(self.config['issue'], timeSpent=time, comment=message, **kwargs)
+
+    @handle_jira_exception
+    def add_comment(self, message, **kwargs):
+        """
+        Proxies `add_comment` with adding jira exception handler.
+        """
+        self.jira.add_comment(self.config['issue'], body=message, **kwargs)
+
+    def __repr__(self):
+        return '<JiraHelper {0["jira_server"]!r} {0["issue"]!r}>'.format(self.config)
+
+
+pass_jira_helper = click.make_pass_decorator(JiraHelper)
 
 
 @click.group()
@@ -38,13 +125,9 @@ def cli(ctx, jira_server, username, password):
 
     ln -s /usr/local/bin/jirosso jirosso
     """
-    # TODO: add timeout
-    ctx.obj = JIRA(
-        server=jira_server,
-        basic_auth=(
-            (username, password)
-        )
-    )
+    ctx.obj = JiraHelper()
+    for option in ('jira_server', 'username', 'password'):
+        ctx.obj.set_config(option, locals()[option])
 
 
 @cli.command()
@@ -69,30 +152,28 @@ def cli(ctx, jira_server, username, password):
     default=False,
     help='Disable actual commit to JIRA',
 )
-@click.pass_obj
-def commit_time(jira, issue_num, time, message, dry_run):
+@pass_jira_helper
+def commit_time(jira_helper, issue_num, time, message, dry_run):
     """
     Command to commit time to JIRA.
 
     Best way to use `commit-time` command is to put
-    git_hooks/prepare-commit-msg into project's .git/hooks directory.
+    git_hooks/prepare-commit-msg into the project's .git/hooks directory.
 
     Dont forget to evaluate
     `chmod +x .git/hooks/prepare-commit-msg`
     """
-    issue = jira.issue(issue_num)
+    jira_helper.set_config('issue', issue_num)
+
+    jira = jira_helper.jira
     if dry_run:
         click.echo('Running in dry run mode')
     else:
-        try:
-            jira.add_worklog(issue, timeSpent=time, comment=message)
-            jira.add_comment(issue, body=message)
-        except JIRAError as e:
-            click.ClickException.show(e)
-            return click.ClickException.exit_code
+        jira.add_worklog(time, message)
+        jira.add_comment(message)
 
-    click.echo('Successfully committed time to JIRA:')
-    click.echo('Issue: {0}'.format(click.style(issue.permalink(), underline=True, fg='blue')))
+    click.echo('Successfully committed time to JIRA')
+    click.echo('Issue: {0}'.format(click.style(jira_helper.issue.permalink(), underline=True, fg='blue')))
     click.echo('Time spent: {0}'.format(click.style(time, fg='red')))
     return 0
 

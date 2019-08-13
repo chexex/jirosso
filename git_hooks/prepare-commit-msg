@@ -3,9 +3,9 @@
 exec < /dev/tty
 
 branchName=`git rev-parse --abbrev-ref HEAD`;
-jiraId=$(echo $branchName | grep -Eo "[A-Z]+-[0-9]+");
+jiraId=`echo ${branchName} | grep -Eo "[A-Z]+-[0-9]+"`;
 
-if [[ -z $jiraId ]]; then
+if [[ -z ${jiraId} ]]; then
  echo "No JIRA ID was found in the commit message";
  echo;
  echo "The commit would not be logged in JIRA";
@@ -13,7 +13,12 @@ if [[ -z $jiraId ]]; then
  exit 1;
 fi
 
-unset timeSpent
-read -p "Enter time spent on the task: " timeSpent
+isAmend=`ps -ocommand= -p $PPID | grep -e '--amend'`;
 
-jirosso commit-time --issue_num $jiraId --message `cat $1` --time $timeSpent
+if [[ -z ${isAmend} ]]; then
+  message="`cat $1` amended"
+else
+  message=`cat $1`
+fi
+
+jirosso commit-time --issue_num ${jiraId} --message `cat $1`
