@@ -173,8 +173,8 @@ def commit_time(jira_helper, issue_num, time, message, dry_run):
     if dry_run:
         click.echo('Running in dry run mode')
     else:
-        jira.add_worklog(time, message)
-        jira.add_comment(message)
+        jira_helper.add_worklog(time, message)
+        jira_helper.add_comment(message)
 
     click.echo('Successfully committed time to JIRA')
     click.echo('Issue: {0}'.format(click.style(jira_helper.issue.permalink(), underline=True, fg='blue')))
