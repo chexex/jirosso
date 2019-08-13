@@ -169,7 +169,6 @@ def commit_time(jira_helper, issue_num, time, message, dry_run):
     """
     jira_helper.set_config('issue', issue_num)
 
-    jira = jira_helper.jira
     if dry_run:
         click.echo('Running in dry run mode')
     else:
