@@ -113,14 +113,16 @@ def cli(ctx, jira_server, username, password):
     """
     Jirosso is a command line tool for manipulating JIRA tasks.
 
-    Jirosso connects to JIRA with the provided credentials.
+    Variables that can be used from environment:
 
-    Variables that can be used from environment
+    \b
       * JIRA_SERVER
       * JIRA_USER
-      * JIRA_PASSWORD  # TODO: leverage password storing
+      * JIRA_PASSWORD
 
     Current list of commands:
+
+    \b
       * `commit-time` -- Update task with its worklog
 
     ln -s /usr/local/bin/jirosso jirosso
