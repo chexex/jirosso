@@ -2,23 +2,35 @@
 
 Jirosso is a command line tool for manipulating JIRA tasks.
 
-#### List of available commands:
-
-  * Update task with its worklog
-
 ## Basic setup
 
 Install the requirements:
-```
+```bash
 $ pip install -r requirements.txt
 ```
 
-Run the application:
-```
+#### List of available commands:
+
+  * commit-time –– Update task with the time spent on it
+
+#### Run the application:
+```bash
 $ python -m jirosso --help
 ```
 
-To run the tests:
+#### Make the application being available system wide
+```bash
+$ pip install -e .
+$ ln -s /usr/local/bin/jirosso jirosso
 ```
-$ pytest
+
+#### Make the application being executable on git commit
+```bash
+$ cp git_hooks/prepare-commit-msg your_project/.git/hooks
+$ chmod +x your_project/.git/hooks/prepare-commit-msg
+```
+
+#### To run the tests:
+```
+$ pytest tests
 ```
