@@ -2,17 +2,24 @@
 
 exec < /dev/tty
 
-branchName=`git rev-parse --abbrev-ref HEAD`;
-jiraId=`echo ${branchName} | grep -Eo "[A-Z]+-[0-9]+"`;
+getJiraId ()
+{
+  local branchName=`git rev-parse --abbrev-ref HEAD`;
+  echo `echo ${branchName} | grep -Eo "[A-Z]+-[0-9]+"`;
+}
 
-message="`cat $1`"
+jiraId=`getJiraId`
+
+message=`cat $1`
 
 if [[ -z ${jiraId} ]]; then
  echo "No JIRA ID was found in the commit message";
  echo;
  echo "New issue will be created";
- jiraId=`jirosso create_issue --message=${message}`;
- git branch -m ${branchName} ${jiraId}
+ jirosso create-issue --rename-branch;
+ jiraId=`getJiraId`
+
+ echo "$jiraId -- $message" > $1
 fi
 
 isAmend=`ps -ocommand= -p $PPID | grep -e '--amend'`;
@@ -21,4 +28,4 @@ if [[ ! -z ${isAmend} ]]; then
   message="${message} amended";
 fi
 
-jirosso commit-time --issue-num ${jiraId} --message ${message};
+jirosso commit-time --issue-num ${jiraId} --message "${message}";

@@ -1,6 +1,6 @@
 # Jirosso
 
-Jirosso is a command line tool for manipulating JIRA tasks.
+Jirosso is a command line tool to manipulate JIRA tasks.
 
 ## Basic setup
 
@@ -12,6 +12,7 @@ $ pip install -r requirements.txt
 #### List of available commands:
 
   * commit-time –– Update task with the time spent on it
+  * create-issue –– Create new issue
 
 #### Run the application:
 ```bash
@@ -31,6 +32,6 @@ $ chmod +x your_project/.git/hooks/prepare-commit-msg
 ```
 
 #### To run the tests:
-```
+```bash
 $ pytest tests
 ```

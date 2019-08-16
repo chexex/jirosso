@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os.path
 import re
+import subprocess
 import sys
-
+from six.moves import configparser
 from functools import wraps
 
 import click
 from jira import JIRA
 from jira.exceptions import JIRAError
+
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'settings.ini'))
 
 
 class lazyproperty:
@@ -49,7 +55,7 @@ class JiraHelper(object):
 
     def __init__(self):
         self.config = {
-            'timeout': 5.001,
+            'timeout': config['DEFAULT'].get('timeout', 20.001),
             'jira_server': None,
             'username': None,
             'password': None,
@@ -96,11 +102,11 @@ class JiraHelper(object):
         self.jira.add_comment(self.issue, body=message, **kwargs)
 
     @handle_jira_exception
-    def add_remote_link(self):
+    def create_issue_link(self, from_issue, to_issue):
         """
         Proxies `add_remote_link` to jira adding exception handler.
         """
-        self.jira.add_remote_link(self.issue)
+        self.jira.create_issue_link('Relates', from_issue, to_issue)
 
     @handle_jira_exception
     def create_issue(self, **kwargs):
@@ -247,9 +253,13 @@ def get_jira_projects(ctx, args, incomplete):
     return [k for k in ctx.obj.projects if incomplete in k]
 
 
+issue_types = config['DEFAULT']['issue_types'].split(',')
+
+
 @cli.command()
 @click.option(
     '--project',
+    prompt=True,
     type=click.STRING,
     autocompletion=get_jira_projects,
     help='JIRA project where issue will be created',
@@ -257,7 +267,7 @@ def get_jira_projects(ctx, args, incomplete):
 @click.option(
     '--issuetype',
     prompt=True,
-    type=click.Choice(('История', 'Ошибка'), case_sensitive=False),
+    type=click.Choice(issue_types, case_sensitive=False),
     help='Type of the issue.',
 )
 @click.option(
@@ -272,6 +282,7 @@ def get_jira_projects(ctx, args, incomplete):
 )
 @click.option(
     '--message',
+    default="",
     prompt=True,
     help='Comment message to the issue',
 )
@@ -283,20 +294,26 @@ def get_jira_projects(ctx, args, incomplete):
     help='Issue that will be linked in the new issue',
 )
 @click.option(
+    '--rename-branch',
+    is_flag=True,
+    help='Rename current branch',
+)
+@click.option(
     '--dry-run',
     is_flag=True,
     default=False,
     help='Disable actual create of issue in JIRA.',
 )
-@pass_jira_helper
-def create_issue(jira_helper, project, issuetype, summary, description, message, issue_to_link, dry_run):
+@click.pass_context
+def create_issue(ctx, project, issuetype, summary, description, message, issue_to_link, rename_branch, dry_run):
     """
     Command to create issue from a command line.
     """
     if dry_run:
         click.echo('Running in dry run mode. Issue wont be created')
-        click.echo('Test')
         sys.exit(0)
+
+    jira_helper = ctx.obj
 
     new_issue = jira_helper.create_issue(
         project=project,
@@ -306,17 +323,32 @@ def create_issue(jira_helper, project, issuetype, summary, description, message,
         prefetch=True
     )
     jira_helper.set_config('issue', new_issue)
-
     jira_helper.assign_issue()
-    jira_helper.add_comment(message)
+
+    if message:
+        jira_helper.add_comment(message)
 
     if issue_to_link:
-        jira_helper.add_remote_link(jira_helper.jira.issue(issue_to_link))
+        jira_helper.create_issue_link(jira_helper.issue, issue_to_link)
 
     click.echo('Successfully created a new issue in JIRA')
     click.echo('Issue: {0}'.format(click.style(new_issue.permalink(), underline=True, fg='blue')))
-    click.echo(new_issue.key)
+
+    if rename_branch:
+        ctx.invoke(git, 'branch', '-m', new_issue.key)
+        click.echo(new_issue.key)
     sys.exit(0)
+
+
+@click.argument('operation')
+@click.argument('args', nargs=-1)
+def git(operation, *args):
+    command = ['git', operation]
+
+    if args:
+        command.extend(args)
+
+    subprocess.call(command)
 
 
 if __name__ == '__main__':
